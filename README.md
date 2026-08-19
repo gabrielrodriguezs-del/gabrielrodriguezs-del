@@ -1,4 +1,4 @@
-## Hi there 👋
+## Hola 👋
 Cosas por hacer
 
 *Aprender a usar GitHub
