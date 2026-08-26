@@ -1,0 +1,174 @@
+Por razones de fuerza mayor, opte por crear una carpeta para hacer este lab 1 que no tenga como partisipantes a mis compañeros 
+Por razon de fuerza mayor, el sistema operativo de mis dos dispositivos de tipo computadora usan linux como unico sitema operativo
+
+.include "m328Pdef.inc"
+
+.org 0x0000
+    rjmp RESET
+
+;Usados r17, r18, r19, r20
+
+RESET:
+    ; Configurar PB0, PB1 y PB2 como salidas
+    ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4)
+    out DDRB, r16                           
+
+    ; Configurar PD2 como entrada con Pull-Up activado (0 = presionado, 1 = suelto)
+    cbi DDRD, 2          
+    sbi PORTD, 2   
+      
+    ; Configurar PD3 como entrada con Pull-Up activado (0 = presionado, 1 = suelto)
+    cbi DDRD, 3
+    sbi PORTD, 3    
+
+    ; Estado inicial (0)
+    clr r17              
+    rjmp ESPERAR_SOLTAR
+
+Luces:    ; Evalúa qué luz encender
+
+    cbi PORTB, PB2
+    cbi PORTB, PB3
+    cbi PORTB, PB4
+
+    cpi r17, 0
+    breq Ligera    ;Ligera
+
+    cpi r17, 1
+    breq Media     ;Media
+
+    cpi r17, 2
+    breq Pesada    ;Pesada
+
+Ligera:
+    sbi PORTB, PB2
+    ret
+
+Media:
+    sbi PORTB, PB3
+    ret
+
+Pesada:
+    sbi PORTB, PB4
+    ret
+
+
+ESPERAR_SOLTAR:
+    rcall Luces
+    ESPERAR_SOLO:
+    sbi PORTB, PB0
+    sbis PIND, 2       ;Espera a que el boton se desprecione
+    rjmp ESPERAR_SOLO
+
+ESPERAR_PRESIONAR:
+    ; sbic salta si PD2 es 0 (presionado). Si está suelto (1), mantiene el bucle.
+    sbis PIND, 3  ;Sensor de la puerta
+    rjmp Lavado
+    sbis PIND, 2          
+    rjmp More1
+    rjmp ESPERAR_PRESIONAR
+
+More1:
+    ; Incrementar el estado (0 -> 1 -> 2 -> 0)
+    inc r17              
+    cpi r17, 3           
+    brne ESPERAR_SOLTAR     ;ESPERAR_PRESIONAR ; Si no es 3, muestra el estado (1 o 2)
+    clr r17              ; Si es 3, lo reinicia a 0 e igual pasa a MOSTRAR_LUZ
+    rjmp ESPERAR_SOLTAR
+
+Lavado:
+    cbi PORTB, PB2
+    cbi PORTB, PB3
+    cbi PORTB, PB4
+
+    cbi PORTB, PB0
+    ldi r21, 2 ;2Segundos Gira
+    add r21, r17
+    ldi r22, 5
+    G1:
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    dec r21
+    brne G1
+    
+    cbi PORTB, PB1
+    ldi r21, 1   ;Pausa 1 Segundo
+    add r21, r17
+    G2:
+    rcall DELAY_1S
+    dec r21
+    brne G2
+
+    ldi r21, 2
+    add r21, r17
+    dec r22
+    brne G1
+    cbi PORTB, PB1
+    rjmp Centrifugado
+    
+Centrifugado:
+    ldi r21, 15 ;15Segundos Gira
+    ldi r22, 1
+    add r22, r17
+    add r22, r17  ;3 vucles
+    add r22, r17
+    G3:
+    sbi PORTB, PB2
+    rcall DELAY_1S
+    dec r21
+    brne G3
+    ldi r21, 15
+    dec r22
+    brne G3
+    cbi PORTB, PB2
+    rjmp Secado
+
+Secado:
+    ldi r21, 5 ;5Segundos Gira
+    add r21, r17
+    add r21, r17
+    ldi r22, 0
+    add r22, r17
+
+    G4:
+    sbi PORTB, PB3 ;Gira
+    rcall DELAY_1S                 ;IZ
+    dec r21
+    brne G4
+    
+    ldi r21, 3 ;5Segundos Gira
+    add r21, r17                   ;info
+    add r21, r17
+
+    G5:
+    cbi PORTB, PB3
+    rcall DELAY_1S
+    dec r21   ;Pausa 1 Segundo   ;Stop
+    brne G5
+
+    ldi r21, 5 ;5Segundos Gira
+    add r21, r17                    ;Info
+    add r21, r17
+
+    G6:
+    sbi PORTB, PB3        ;Gira
+    rcall DELAY_1S                 ;der
+    dec r21
+    brne G6
+    cbi PORTB, PB3
+
+Floot:
+    sbi PORTB, PB4
+    rjmp Floot
+
+DELAY_1S:
+    ldi  r18, 82
+    ldi  r19, 43
+    ldi  r20, 0
+L1: dec  r20    ;Segundos r20-1 
+    brne L1
+    dec  r19    ;
+    brne L1
+    dec  r18
+    brne L1
+    ret
