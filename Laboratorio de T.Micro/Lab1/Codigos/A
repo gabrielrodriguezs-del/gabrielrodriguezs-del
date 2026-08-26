@@ -1,0 +1,150 @@
+; Por razones de comodidad, uno de los partisipantes utiliza otro softwere para implementar la programacion
+
+.include "m328Pdef.inc"
+                              ;Planifique una estructura general, ahora tengo que implementarlo en codigo
+.org 0x0000
+   rjmp RESET
+
+RESET:
+   ;Entradas y salidas
+   ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4)
+   out DDRB, r16
+
+   cbi DDRD, 2
+   sbi PORTD, 3
+
+   clr r17
+   rjmp ESPERAR_Soltar
+
+Luces:  ;Evaluca que luz encender
+
+   cbi PORTB, PB2
+   cbi PORTB, PB3
+   cbi PORTB, PB4
+
+   cbi r17, 0
+   breq Ligera ;Ligera
+
+   cbi r17, 1 
+   breq, Media
+
+   cbi r17, 2
+   breq Pesada
+
+Ligera:
+   sbi PORTB, PB2
+   ret
+
+Media:
+   sbi PORTB, PB3
+   ret
+
+Pesada:
+   sbi PORTB, PB4
+   ret
+
+Esperar_Soltar:
+   rcall Luces
+   ESPERAR_SOLO:
+   sbi PORTB, PB0
+   sbis PIND, 2
+   rjmp ESPERAR_SOLO
+
+ESPERAR_RESIONAR:
+   sbis PIND, 3
+   rjmp Lavado      ;Empiesa el proceso prinsipal
+   sbis PIND, 2
+   rjmp More1       ;n+1
+   rjmp ESPERAR_PRESIONAR
+
+More1:
+   inc r17
+   cpi r17, 3
+   brne ESPERAR_SOLTAR
+   cl r17
+   rjmp ESPERAR_SOLTAR
+
+Lavado:
+   cbi PORTB, PB2
+   cbi PORTB, PB3
+   cbi PORTB, PB4
+
+   cbi PORTB, PB0
+   ldi r21, r17
+   ldi r22, 5
+G1:
+   sbi PORTB, PB1
+   rcall DELAY_1S
+   dec r21
+   brne G1
+
+   cbi PORTB, PB1
+   ldi r21, 1       ;Pausa 1 segundo
+   add r21, r17
+   dec r22
+   brne G1
+   cbi PORTB, PB1
+   rjmp Centrifugado 
+
+Centrifugado:
+   ldi r21, 15  ;15 Segundos gira
+   ldi r22, 1 
+   add r22, r17
+   add r22, r17 ;3 vucles
+   add r22, r17
+   G3:
+   sbi PORTB, PB2
+   rcall DELAY_1S
+   dec r22
+   brne G3
+   cbi PORTB, PB2
+   rjmp Secado
+
+Secado:
+   ldi r21,4 ;5 Segundos Gira
+   add r21, r17
+   add r21, r17
+   ldi r22, 0
+   add r22, r17
+
+G4:
+   sbi PORTB, PB3 ;gira
+   rcall DELAY_1S
+   dec r21               ;Izquierda
+   brne G4
+
+   ldi r21, 3 ;3Segundos Gira 
+   add r21, r17                ;info
+   add r21, r17
+
+G5:
+   cbi PORTB, PB3
+   rcall DELAY_1S
+   dec r21 ;Pausa 1 segundo ;Stop
+   brne G5
+
+   ldi r21, 5 ;5segundos gira
+   add r21, r17
+   add r21, r17
+
+G6:
+   sbi PORTB, PB3
+   rcall DELAY_1S              ;Der
+   brne G6
+   cbi PORTB, PB3
+
+Floot:
+   sbi PORTB, PB4
+   rjmp Floot
+
+DELAY_1S:
+   ldi r18, 82
+   ldi r19, 43
+   ldi r20, 0
+L1: dec r20   ;Segundos r20-1
+   brne l1
+   dec r19
+   brne L1
+   dec r18
+   brne L1
+   ret
