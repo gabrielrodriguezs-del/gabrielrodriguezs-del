@@ -1,0 +1,47 @@
+stateDiagram-v2
+    [*] --> RESET: Encendido / Reset
+    
+    RESET --> MOSTRAR_NUMERO: Configura E/S (DDRB, DDRD, Pull-ups) y r17 = 0
+    
+    MOSTRAR_NUMERO --> ESPERAR_SOLO: Decodifica r17 y enciende segmentos (PB0-PB5, PD7)
+    
+    state ESPERAR_SOLO {
+        [*] --> Verificar_Liberacion
+        Verificar_Liberacion --> Verificar_Liberacion: Algún botón presionado (PD2=0 o PD3=0 o PD4=0)
+    }
+    
+    ESPERAR_SOLO --> ESPERAR_PRESIONAR: PD2=1 AND PD3=1 AND PD4=1 (Todos sueltos)
+    
+    state ESPERAR_PRESIONAR {
+        [*] --> Muestrear_Entradas
+        Muestrear_Entradas --> Muestrear_Entradas: Ningún botón presionado
+    }
+    
+    ESPERAR_PRESIONAR --> CERO: Presionado PD4 (Boton Cero = 0)
+    ESPERAR_PRESIONAR --> MAS: Presionado PD3 (Boton Mas = 0)
+    ESPERAR_PRESIONAR --> MENOS: Presionado PD2 (Boton Menos = 0)
+    
+    state MAS {
+        [*] --> Evaluar_Limite_Mas
+        Evaluar_Limite_Mas --> Incrementar: r17 < 9
+        Evaluar_Limite_Mas --> Ignorar_Mas: r17 == 9
+        Incrementar --> [*]: r17 = r17 + 1
+        Ignorar_Mas --> [*]
+    }
+    
+    state MENOS {
+        [*] --> Evaluar_Limite_Menos
+        Evaluar_Limite_Menos --> Decrementar: r17 > 0
+        Evaluar_Limite_Menos --> Ignorar_Menos: r17 == 0
+        Decrementar --> [*]: r17 = r17 - 1
+        Ignorar_Menos --> [*]
+    }
+    
+    state CERO {
+        [*] --> Resetear_Valor: r17 = 0
+        Resetear_Valor --> [*]
+    }
+    
+    MAS --> MOSTRAR_NUMERO
+    MENOS --> MOSTRAR_NUMERO
+    CERO --> MOSTRAR_NUMERO
