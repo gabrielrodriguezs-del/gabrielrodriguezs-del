@@ -1,0 +1,155 @@
+.include "m328Pdef.inc"
+
+.org 0x0000
+    rjmp RESET
+
+RESET:
+    ; Configurar PB0 a PB5 como salidas (Segmentos A, B, C, D, E, F)
+    ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4) | (1<<PB5)
+    out DDRB, r16                           
+
+    ; Configurar PD7 como salida (Segmento G)
+    ldi r16, (1<<PD7)
+    out DDRD, r16  
+
+    ; Configurar PD2, PD3 y PD4 como entradas con Pull-Up
+    cbi DDRD, 2          
+    sbi PORTD, 2   
+    cbi DDRD, 3
+    sbi PORTD, 3    
+    cbi DDRD, 4
+    sbi PORTD, 4  
+
+    clr r17                 ; Estado inicial: 0
+    rjmp ESPERAR_SOLTAR
+
+ESPERAR_SOLTAR:
+    rjmp Mostrar_Numero     ; Actualiza el display con el valor actual de r17
+
+ESPERAR_SOLO:
+    sbis PIND, 2            ; Espera a liberar PD2 (Menos)
+    rjmp ESPERAR_SOLO
+    sbis PIND, 3            ; Espera a liberar PD3 (Más)
+    rjmp ESPERAR_SOLO
+    sbis PIND, 4            ; Espera a liberar PD4 (Cero)
+    rjmp ESPERAR_SOLO
+
+ESPERAR_PRESIONAR:
+    sbis PIND, 4            ; Botón Cero (PD4)
+    rjmp Cero
+    sbis PIND, 3            ; Botón Más (PD3)
+    rjmp Mas
+    sbis PIND, 2            ; Botón Menos (PD2)
+    rjmp Menos
+    rjmp ESPERAR_PRESIONAR
+
+Mas:
+    cpi r17, 9        
+    breq ESPERAR_SOLTAR 
+    inc r17           
+    rjmp ESPERAR_SOLTAR
+
+Menos:
+    cpi r17, 0        
+    breq ESPERAR_SOLTAR 
+    dec r17           
+    rjmp ESPERAR_SOLTAR
+
+Cero:
+    clr r17  
+    rjmp ESPERAR_SOLTAR
+
+; --- Rutina para apagar todo y renderizar el dígito ---
+Mostrar_Numero:
+    ; Limpiar salidas (Apagar todos los segmentos)
+    cbi PORTB, PB0
+    cbi PORTB, PB1
+    cbi PORTB, PB2
+    cbi PORTB, PB3
+    cbi PORTB, PB4
+    cbi PORTB, PB5
+    cbi PORTD, PD7
+
+    ; Saltos condicionales corregidos usando breq
+    cpi r17, 0  
+    breq Sero
+    cpi r17, 1
+    breq Uno
+    cpi r17, 2 
+    breq Dos
+    cpi r17, 3 
+    breq Tres
+    cpi r17, 4
+    breq Cuatro
+    cpi r17, 5
+    breq Cinco
+    cpi r17, 6 
+    breq Seis
+    cpi r17, 7
+    breq Siete
+    cpi r17, 8
+    breq Ocho
+    cpi r17, 9  
+    breq Nueve
+
+    rjmp ESPERAR_SOLO
+
+; --- Mapeo de Segmentos (A-F en PORTB, G en PD7) ---
+Sero:
+    ldi r16, (1<<PB0)|(1<<PB1)|(1<<PB2)|(1<<PB3)|(1<<PB4)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Uno:
+    ldi r16, (1<<PB3)|(1<<PB4)
+    out PORTB, r16
+    rjmp ESPERAR_SOLO
+
+Dos:
+    ldi r16, (1<<PB1)|(1<<PB2)|(1<<PB4)|(1<<PB5)|(1<<PB6)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Tres:
+    ldi r16, (1<<PB2)|(1<<PB3)|(1<<PB4)|(1<<PB5)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Cuatro:
+    ldi r16, (1<<PB0)|(1<<PB3)|(1<<PB4)|(1<<PB5)
+    out PORTB, r16
+    ;sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Cinco:
+    ldi r16, (1<<PB0)|(1<<PB2)|(1<<PB3)|(1<<PB5)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Seis:
+    ldi r16, (1<<PB0)|(1<<PB2)|(1<<PB3)|(1<<PB1)|(1<<PB5)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Siete:
+    ldi r16, (1<<PB3)|(1<<PB4)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Ocho:
+    ldi r16, (1<<PB0)|(1<<PB1)|(1<<PB2)|(1<<PB3)|(1<<PB4)|(1<<PB5)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
+
+Nueve:
+    ldi r16, (1<<PB0)|(1<<PB4)|(1<<PB2)|(1<<PB3)|(1<<PB5)
+    out PORTB, r16
+    sbi PORTD, PD7
+    rjmp ESPERAR_SOLO
