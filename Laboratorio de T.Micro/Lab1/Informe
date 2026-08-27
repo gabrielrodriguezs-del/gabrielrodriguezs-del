@@ -1,1 +1,204 @@
+%Latex
+\documentclass[conference]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{float}
+\usepackage{cite}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage[colorlinks=true,
+            linkcolor=black,
+            citecolor=black,
+            urlcolor=blue]{hyperref}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{circuitikz}
 
+\title{Laboratorio 1: Entrada/Salida de Propósito General (GPIO), Máquinas de Estado y ALU en Ensamblador AVR (ATmega328P)}
+
+\author{
+\IEEEauthorblockN{Gabriel Rodríguez}
+\IEEEauthorblockA{
+C.I.: 55.296.771\\
+Ingeniería Mecatrónica\\
+Universidad Tecnológica del Uruguay\\
+San José, Uruguay
+}
+\and
+\IEEEauthorblockN{Dylan Andrada}
+\IEEEauthorblockA{
+C.I.: 55.275.975\\
+Ingeniería Mecatrónica\\
+Universidad Tecnológica del Uruguay\\
+Montevideo, Uruguay
+}
+\and
+\IEEEauthorblockN{Luka Pedetti}
+\IEEEauthorblockA{
+C.I.: 57.405.544\\
+Ingeniería Mecatrónica\\
+Universidad Tecnológica del Uruguay\\
+Salto, Uruguay
+}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+En el presente informe se documenta el diseño, simulación e implementación práctica de cuatro subsistemas digitales basados en el microcontrolador ATmega328P mediante lenguaje ensamblador AVR. Las actividades abarcan: la automatización del ciclo de una lavadora mediante una Máquina de Estados Finitos (FSM), un contador digital ascendente/descendente con eliminación de rebotes y salida a display de 7 segmentos, un selector de secuencias luminosas sobre 8 LEDs y la implementación de una Unidad Aritmético-Lógica (ALU) de 4 bits con indicadores de estado ($C, N, Z$). Se presentan los diagramas de transiciones, la gestión de registros de trabajo, la configuración de puertos GPIO y el análisis de resultados experimentales.
+\end{abstract}
+
+\begin{IEEEkeywords}
+ATmega328P, Lenguaje Ensamblador (ASM), GPIO, Máquinas de Estado (FSM), ALU, Antirrebote, Microcontroladores.
+\end{IEEEkeywords}
+
+\section{Introducción}
+
+El diseño de sistemas embebidos de bajo nivel requiere un dominio directo sobre los recursos del hardware. El uso del lenguaje ensamblador AVR para el microcontrolador ATmega328P permite optimizar la ejecución del código, manipular individualmente los registros de configuración de los puertos E/S (\texttt{DDRx}, \texttt{PORTx}, \texttt{PINx}) y gestionar tiempos de retardo precisos por software.
+
+Este informe abarca la resolución técnica de los cuatro problemas planteados en el Laboratorio 1 de Tecnologías de Microprocesamiento, fundamentados en el control de perimétricos digitales, estructuración modular de código y versionado mediante Git/GitHub.
+
+\section{Objetivos}
+
+\subsection{Objetivo General}
+Diseñar e implementar en lenguaje ensamblador AVR soluciones funcionales para sistemas de control discreto, procesamiento aritmético-lógico y periféricos de entrada/salida sobre la arquitectura ATmega328P.
+
+\subsection{Objetivos Específicos}
+\begin{itemize}
+    \item Implementar la lógica de control de una lavadora automática mediante máquinas de estado finitos (FSM), integrando sensores de puerta/agua y temporización según la carga.
+    \item Desarrollar un contador digital ($0-9$) con control por pulsadores, rutina de antirrebote (debounce) por software y decodificación a display de 7 segmentos.
+    \item Programar rutinas de manipulación de bits mediante máscaras y desplazamientos (\texttt{LSR}, \texttt{LSL}) para secuencias de LED dinámicas.
+    \item Sintetizar una ALU de 4 bits operando con entradas de selección $S[2:0]$ y actualización del registro de estado $SREG$ (banderas $C, N, Z$).
+    \item Gestionar el código fuente mediante el sistema de control de versiones GitHub.
+\end{itemize}
+
+\section{Marco Teórico}
+
+\subsection{Arquitectura AVR y Puertos E/S}
+El microcontrolador ATmega328P se basa en la arquitectura Harvard con ejecución RISC. Los puertos de E/S (\texttt{PORTB}, \texttt{PORTC}, \texttt{PORTD}) son mapeados mediante tres registros principales:
+\begin{itemize}
+    \item \texttt{DDRx}: Configura la dirección del pin ($0 = \text{Entrada}$, $1 = \text{Salida}$).
+    \item \texttt{PORTx}: Establece el nivel lógico de salida o habilita las resistencias de \textit{pull-up} internas.
+    \item \texttt{PINx}: Lee el estado físico de los pines del puerto.
+\end{itemize}
+
+\subsection{Máquinas de Estado Finitos (FSM)}
+Una FSM permite estructurar el comportamiento del sistema dividiendo la lógica en estados discretos $S = \{S_0, S_1, \dots, S_n\}$. Las transiciones dependen del estado actual y de las entradas de sensores/botones ($E$), produciendo salidas estáticas o dinámicas ($O$).
+
+\subsection{Eliminación de Rebotes (Debounce)}
+Los pulsadores mecánicos generan transitorios eléctricos de varios milisegundos. Para evitar múltiples lecturas erróneas se implementan ciclos de retardo por software ($\sim 20\,\text{ms}$) tras detectar la primera transición lógica antes de confirmar la pulsación.
+
+\section{Desarrollo e Implementación}
+
+\subsection{Problema A: Lavadora Automática}
+Se diseñó una máquina de estados controlada por un temporizador interno basado en bucles de retardo. El sistema evalúa las entradas:
+\begin{itemize}
+    \item $E_0$: Sensor de Puerta Cerrada.
+    \item $E_1$: Sensor de Llenado de Agua.
+    \item $E_2$: Pulsador de Inicio.
+    \item $E_3$: Seleccionar Carga (Ligera: $+0\,\text{s}$, Media: $+1\,\text{s}$, Pesada: $+2\,\text{s}$).
+\end{itemize}
+Las salidas controlan el motor en ambos sentidos de giro y un banco de 8 LEDs que informan el estado actual (Lavado, Centrifugado, Secado, Listo, Fin) y el tipo de carga activa.
+
+\subsection{Problema B: Contador con Display de 7 Segmentos}
+Se utilizó un arreglo en memoria Flash (\texttt{.db}) para decodificar números de 4 bits a código BCD de 7 segmentos (cátodo común). Tres pulsadores conectados al puerto C gestionan el comportamiento:
+\begin{itemize}
+    \item \textbf{BTN 1 (Incremento):} Suma 1 al registro contador; si llega a 9, se mantiene o reinicia según diseño.
+    \item \textbf{BTN 2 (Decremento):} Resta 1 al registro contador; si llega a 0, se detiene.
+    \item \textbf{BTN 3 (Reset):} Carga el valor \texttt{0x00} inmediatamente.
+\end{itemize}
+
+\subsection{Problema C: Selección de Secuencias Luminosas}
+Se implementaron 4 secuencias en un arreglo de 8 LEDs en \texttt{PORTD}:
+\begin{enumerate}
+    \item Secuencia 1: Auto fantástico (desplazamiento lateral \texttt{LSL}/\texttt{LSR}).
+    \item Secuencia 2: Llenado desde los extremos hacia el centro.
+    \item Secuencia 3: Parpadeo alternado (máscaras \texttt{0xAA} y \texttt{0x55}).
+    \item Secuencia 4: Contador binario de 8 bits.
+\end{enumerate}
+
+\subsection{Problema D: Unidad Aritmético-Lógica (ALU) de 4 bits}
+Se leyó la entrada del puerto $S[2:0]$ mediante la instrucción \texttt{in} y una máscara de bits \texttt{andi}. Las operaciones implementadas según el código de selección se detallan a continuación:
+\begin{itemize}
+    \item \texttt{000}: Clear ($F = 0000_2$)
+    \item \texttt{001}: Resta ($F = A - B$)
+    \item \texttt{010}: Suma ($F = A + B$)
+    \item \texttt{011}: XOR ($F = A \oplus B$)
+    \item \texttt{100}: AND ($F = A \cdot B$)
+    \item \texttt{101}: OR ($F = A + B$)
+    \item \texttt{110}: SHL ($F = A \ll 1$)
+    \item \texttt{111}: INC ($F = A + 1$)
+\end{itemize}
+Se evaluaron los bits del registro de estado \texttt{SREG} para activar LEDs externos indicadores de banderas: Carry ($C$), Negativo ($N$) y Cero ($Z$).
+
+\section{Resultados y Discusión}
+
+El código fue validado mediante simulación previa en SimulIDE / Microchip Studio y verificado posteriormente sobre una placa de desarrollo basada en ATmega328P. La Cuadro \ref{tab:resultados} sintetiza el nivel de cumplimiento y los parámetros obtenidos en las pruebas de laboratorio.
+
+\begin{table}[H]
+\centering
+\caption{Resumen de pruebas y verificación de hardware.}
+\label{tab:resultados}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Módulo / Prueba} & \textbf{Estado} & \textbf{Observación / Tiempo} \\
+\hline
+FSM Lavadora Automática & Funcional & Tiempos ajustados según carga \\
+\hline
+Filtro Antirrebote (Debounce) & Funcional & Retardo de $20\,\text{ms}$ verificado \\
+\hline
+Display 7 Segmentos & Funcional & Decodificación BCD correcta \\
+\hline
+Secuencias en LEDs (8-bits) & Funcional & Transición fluida con botones \\
+\hline
+Operaciones ALU (Aritmética) & Funcional & Banderas $C, Z, N$ precisas \\
+\hline
+Operaciones ALU (Lógicas) & Funcional & Correcta aplicación de máscaras \\
+\hline
+Repositorio GitHub & Publicado & $> 3$ commits significativos \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Análisis del Antirrebote por Software}
+Durante las pruebas experimentales del Problema B, la lectura limpia de las pulsaciones requirió implementar un retardo doble (al presionar y al soltar el botón). Esto evitó saltos no deseados en el conteo del display.
+
+\subsection{Uso de Recursos y Registros}
+La implementación en ensamblador permitió un uso extremadamente eficiente de la memoria de programa (Flash < 1 KB) e instrucciones optimizadas empleando únicamente los registros de propósito general R16 a R25.
+
+\section{Conclusiones}
+
+Se logró cumplir con todos los objetivos planteados en la guía de Laboratorio 1. La utilización del ensamblador AVR permitió comprender en profundidad el funcionamiento de los puertos E/S, la manipulación de interrupciones o temporización mediante bucles, y la lógica de decodificación a nivel de registros en el microcontrolador ATmega328P.
+
+El control de versiones mediante GitHub garantizó la trazabilidad durante el proceso de desarrollo y la integración modular de los bloques evaluados.
+
+\section*{Enlace al Repositorio y Documentación}
+El código fuente en ensamblador del proyecto se encuentra alojado en el siguiente repositorio público: \\
+\url{https://github.com/gabrielrodriguezs-del/gabrielrodriguezs-del}
+
+\vspace{0.5em}
+\noindent Asimismo, en el siguiente enlace a Google Drive se pueden consultar las imágenes, videos del funcionamiento y el informe completo en formato PDF: \\
+\url{https://drive.google.com/drive/folders/1sWM0j4C79N4BBN-EMLt3xe-EHUpqkkO7?usp=drive_link}
+
+\begin{thebibliography}{99}
+
+\bibitem{datasheet}
+Microchip Technology Inc., \emph{ATmega328P 8-bit AVR Microcontroller with 32K Bytes In-System Programmable Flash Datasheet}, Doc. DS40002061B, 2018.
+
+\bibitem{mazidi}
+M. A. Mazidi, S. Naimi, y S. Naimi, \emph{The AVR Microcontroller and Embedded Systems: Using Assembly and C}, Prentice Hall, 2011.
+
+\bibitem{instructionset}
+Atmel Corporation, \emph{AVR Instruction Set Manual}, Doc. Atmel-0856L-AVR-Instruction-Set-Manual, 2016.
+
+\bibitem{simulide}
+S. Torro, \emph{SimulIDE: Real-Time Electronic Circuit Simulator}, Ver. 1.1.0, 2023. [En línea]. Disponible en: \url{https://simulide.com/p/}
+
+\end{thebibliography}
+
+\end{document}
