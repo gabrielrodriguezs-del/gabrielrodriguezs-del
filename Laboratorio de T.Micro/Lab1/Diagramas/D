@@ -1,0 +1,67 @@
+stateDiagram-v2
+    [*] --> RESET: Encendido / Reset
+    
+    RESET --> MAIN: Configura SP, DDRB (Salidas LEDs), PORTD (Pull-Ups PD2..PD6)
+    
+    state MAIN {
+        [*] --> Lectura_Entradas
+        Lectura_Entradas --> Decodificar_OP: Extrae Selector OP (PD2-PD4), A (PD5), B (PD6)
+        
+        state Decodificar_OP {
+            [*] --> Evaluar_Opcode
+            Evaluar_Opcode --> Cero: OP = 000 (Clear)
+            Evaluar_Opcode --> Uno: OP = 001 (A - B)
+            Evaluar_Opcode --> Dos: OP = 010 (A + B)
+            Evaluar_Opcode --> Tres: OP = 011 (A XOR B)
+            Evaluar_Opcode --> Cuatro: OP = 100 (A AND B)
+            Evaluar_Opcode --> Cinco: OP = 101 (A OR B)
+            Evaluar_Opcode --> Seis: OP = 110 (A << 1)
+            Evaluar_Opcode --> Siete: OP = 111 (A + 1)
+        }
+    }
+
+    state OPERACIONES_ALU {
+        state Cero {
+            [*] --> Exec_Clr: r16 = 0
+            Exec_Clr --> ACT_FLAGS_LOGICAS
+        }
+        state Uno {
+            [*] --> Exec_Sub: r16 = A - B
+            Exec_Sub --> MOSTRAR
+        }
+        state Dos {
+            [*] --> Exec_Add: r16 = A + B
+            Exec_Add --> MOSTRAR
+        }
+        state Tres {
+            [*] --> Exec_Eor: r16 = A XOR B
+            Exec_Eor --> ACT_FLAGS_LOGICAS
+        }
+        state Cuatro {
+            [*] --> Exec_And: r16 = A AND B
+            Exec_And --> ACT_FLAGS_LOGICAS
+        }
+        state Cinco {
+            [*] --> Exec_Or: r16 = A OR B
+            Exec_Or --> ACT_FLAGS_LOGICAS
+        }
+        state Seis {
+            [*] --> Exec_Lsl: r16 = A << 1
+            Exec_Lsl --> MOSTRAR
+        }
+        state Siete {
+            [*] --> Exec_Inc: r16 = A + 1
+            Exec_Inc --> MOSTRAR
+        }
+    }
+
+    ACT_FLAGS_LOGICAS --> EVALUAR_LEDS: C=0, TST r16 (Actualiza Z) y Lee SREG -> r19
+    MOSTRAR --> EVALUAR_LEDS: Lee SREG -> r19
+
+    state EVALUAR_LEDS {
+        [*] --> Mapear_Salidas
+        Mapear_Salidas --> Formar_r20: PB0=Res, PB1=Carry/Bit1, PB2=Neg, PB3=Zero, PB4=Power LED
+        Formar_r20 --> Output_PortB: out PORTB, r20
+    }
+
+    EVALUAR_LEDS --> MAIN: Bucle continuo de ejecución
