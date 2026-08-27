@@ -1,0 +1,65 @@
+stateDiagram-v2
+    [*] --> RESET: Encendido / Reset
+    
+    RESET --> LEER_BOTONES: Configura Stack Pointer, DDRB/DDRD (Salidas LED), Pull-Ups (PD2..PD4) y r16 = 0
+
+    state LEER_BOTONES {
+        [*] --> Muestrear_Pines
+        Muestrear_Pines --> MasUno: PD2 = 0 (Pulsado)
+        Muestrear_Pines --> MenosUno: PD3 = 0 (Pulsado)
+        Muestrear_Pines --> Cero: PD4 = 0 (Pulsado)
+        Muestrear_Pines --> ESPERAR_SOLTAR: Ningún botón presionado
+    }
+
+    state ESPERAR_SOLTAR {
+        [*] --> Verificar_Release
+        Verificar_Release --> Verificar_Release: Algún botón sigue presionado (PD2=0 o PD3=0 o PD4=0)
+    }
+
+    ESPERAR_SOLTAR --> MENU: PD2=1 AND PD3=1 AND PD4=1 (Todos sueltos)
+
+    MasUno --> ESPERAR_SOLTAR: r16 = r16 + 1
+    
+    state MenosUno {
+        [*] --> Evaluar_Cero
+        Evaluar_Cero --> Ignorar_Menos: r16 == 0
+        Evaluar_Cero --> Decrementar: r16 > 0
+        Decrementar --> [*]: r16 = r16 - 1
+        Ignorar_Menos --> [*]
+    }
+    MenosUno --> ESPERAR_SOLTAR
+
+    Cero --> ESPERAR_SOLTAR: r16 = 0
+
+    state MENU {
+        [*] --> Seleccionar_Modo
+        Seleccionar_Modo --> Siccer: r16 == 0
+        Seleccionar_Modo --> Sicuno: r16 == 1
+        Seleccionar_Modo --> Sicdos: r16 == 2
+        Seleccionar_Modo --> Sictre: r16 == 3
+        Seleccionar_Modo --> Siccua: r16 >= 4 (Satura a 4)
+    }
+
+    state SELECCION_SECUENCIA {
+        state Siccer {
+            [*] --> Patron_1: Secuencia 1->8 (Izquierda a Derecha)
+        }
+        state Sicuno {
+            [*] --> Patron_2: Secuencia 8->1 (Derecha a Izquierda)
+        }
+        state Sicdos {
+            [*] --> Patron_3: Secuencia Impares -> Pares
+        }
+        state Sictre {
+            [*] --> Patron_4: Secuencia Pares -> Impares (Inversa)
+        }
+        state Siccua {
+            [*] --> Patron_5: Secuencia Extremos hacia Centro
+        }
+    }
+
+    Siccer --> LEER_BOTONES: Al finalizar barrido, revisa PD2, PD3, PD4
+    Sicuno --> LEER_BOTONES: Al finalizar barrido, revisa PD2, PD3, PD4
+    Sicdos --> LEER_BOTONES: Al finalizar barrido, revisa PD2, PD3, PD4
+    Sictre --> LEER_BOTONES: Al finalizar barrido, revisa PD2, PD3, PD4
+    Siccua --> LEER_BOTONES: Al finalizar barrido, revisa PD2, PD3, PD4
