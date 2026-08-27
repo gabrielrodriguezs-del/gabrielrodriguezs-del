@@ -1,0 +1,58 @@
+[ RESET ]
+   │
+   ├── 1. Configura Entradas/Salidas (PORTB: Salidas, PORTD: Botones PD2 y PD3 con Pull-Up)
+   ├── 2. Inicia nivel de carga: r17 = 0 (Ligera)
+   ▼
+[ ESPERAR_SOLTAR / ESPERAR_PRESIONAR ]
+   │
+   ├── Enciende PB0 (Luz de encendido/espera)
+   ├── rcall Luces ───────────► [ SUBRUTINA Luces ]
+   │                              ├── Evalúa r17 (0, 1 o 2)
+   │                              └── Enciende PB2, PB3 o PB4 (Ligera/Media/Pesada)
+   │
+   ├── ¿PD2 Presionado? (Botón Selección) ──► [ More1 ]
+   │                                             ├── Incrementa r17 (0 -> 1 -> 2 -> 0)
+   │                                             └── Salta a ESPERAR_SOLTAR (Actualiza luz)
+   │
+   └── ¿PD3 Presionado? (Sensor Puerta/Inicio)
+         │
+         ▼
+[ LAVADO ]
+   │
+   ├── Apaga luces de selección y PB0
+   ├── Prepara tiempos base según r17 (r21 = 2 + r17)
+   │
+   ├── BUCLE PRINCIPAL (r22 = 5 iteraciones):
+   │     ├── Enciende PB1 (Motor Giro) -> Espera r21 segundos
+   │     ├── Apaga PB1
+   │     └── Pausa (Motor detenido) -> Espera (1 + r17) segundos
+   │
+   ▼ (Terminan las 5 repeticiones)
+[ CENTRIFUGADO ]
+   │
+   ├── Prepara bucles: r22 = 1 + (r17 * 3)
+   │
+   ├── BUCLE G3 (Gira a alta velocidad):
+   │     ├── Enciende PB2 (Bomba/Motor)
+   │     └── Espera 15 segundos por cada ciclo de r22
+   │
+   ├── Apaga PB2
+   ▼
+[ SECADO ]
+   │
+   ├── Giro Izquierda:
+   │     ├── Enciende PB3 -> Espera [ 5 + (r17 * 2) ] segundos
+   │     └── Apaga PB3
+   │
+   ├── Pausa / Parada:
+   │     └── Espera [ 3 + (r17 * 2) ] segundos
+   │
+   ├── Giro Derecha:
+   │     ├── Enciende PB3 -> Espera [ 5 + (r17 * 2) ] segundos
+   │     └── Apaga PB3
+   │
+   ▼
+[ FLOOT ]
+   │
+   ├── Enciende el PB4 
+   └── rjmp Floot  <─── Bucle infinito seguro (Programa Finalizado)
