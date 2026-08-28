@@ -1,4 +1,4 @@
-.include "m328Pdef.inc"
+.include "m328Pdef.inc" ;Edicion rapida
 .cseg
 .org 0x0000
 
