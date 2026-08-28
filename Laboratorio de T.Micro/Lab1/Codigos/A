@@ -1,6 +1,6 @@
 ; Por razones de comodidad, uno de los partisipantes utiliza otro softwere para implementar la programacion
 
-.include "m328Pdef.inc"
+.include "m328pdef.inc"
                               ;Planifique una estructura general, ahora tengo que implementarlo en codigo
 .org 0x0000
    rjmp RESET
@@ -11,6 +11,9 @@ RESET:
    out DDRB, r16
 
    cbi DDRD, 2
+  cbi DDRD, 3
+
+  sbi PORTD, 2
    sbi PORTD, 3
 
    clr r17
@@ -22,14 +25,16 @@ Luces:  ;Evaluca que luz encender
    cbi PORTB, PB3
    cbi PORTB, PB4
 
-   cbi r17, 0
+   cpi r17, 0
    breq Ligera ;Ligera
 
-   cbi r17, 1 
-   breq, Media
+   cpi r17, 1 
+   breq Media
 
-   cbi r17, 2
+   cpi r17, 2
    breq Pesada
+
+  ret
 
 Ligera:
    sbi PORTB, PB2
@@ -43,25 +48,28 @@ Pesada:
    sbi PORTB, PB4
    ret
 
-Esperar_Soltar:
+ESPERAR_Soltar:
    rcall Luces
+
    ESPERAR_SOLO:
    sbi PORTB, PB0
    sbis PIND, 2
    rjmp ESPERAR_SOLO
 
-ESPERAR_RESIONAR:
-   sbis PIND, 3
-   rjmp Lavado      ;Empiesa el proceso prinsipal
-   sbis PIND, 2
+ESPERAR_PESIONAR:
+   sbis PIND, PD3
+   rjmp Lavado  ;Empiesa el proceso principal
+
+   sbis PIND, PD2
    rjmp More1       ;n+1
+
    rjmp ESPERAR_PRESIONAR
 
 More1:
    inc r17
    cpi r17, 3
    brne ESPERAR_SOLTAR
-   cl r17
+   clr r17
    rjmp ESPERAR_SOLTAR
 
 Lavado:
@@ -70,7 +78,8 @@ Lavado:
    cbi PORTB, PB4
 
    cbi PORTB, PB0
-   ldi r21, r17
+   mov r21, r17
+  inc r21
    ldi r22, 5
 G1:
    sbi PORTB, PB1
