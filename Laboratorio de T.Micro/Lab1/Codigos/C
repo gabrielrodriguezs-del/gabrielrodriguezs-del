@@ -63,9 +63,6 @@ Cero:
     clr r16
     rjmp ESPERAR_SOL
 
-; -------------------------------------------------------------------------
-; MENU DE SELECCION (Solucionado el error Branch out of range)
-; -------------------------------------------------------------------------
 Menu:                  
     cpi r16, 0
     brne CHECK_1
