@@ -121,7 +121,7 @@ Centrifugado:
 
 Secado:
    ldi r21,5 ;5 Segundos Gira
-  mov r22, 17
+  mov r22, r17
    add r22, r17
    add r21, r22
 
