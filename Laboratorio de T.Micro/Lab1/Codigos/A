@@ -10,6 +10,9 @@ RESET:
 ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4)
 out DDRB, r16
 
+ldi r16, (1<<PC5) | (1<<PC4) | (1<<PC3)
+out DDRC, r16
+
 ; Configurar PD2 como entrada con Pull-Up activado (0 = presionado, 1 = suelto)
 cbi DDRD, 2
 sbi PORTD, 2
@@ -24,9 +27,9 @@ rjmp ESPERAR_SOLTAR
 
 Luces: ; Evalúa qué luz encender
 
-cbi PORTB, PB2
-cbi PORTB, PB3
-cbi PORTB, PB4
+cbi PORTC, PC5
+cbi PORTC, PC4
+cbi PORTC, PC3
 
 cpi r17, 0
 breq Ligera ;Ligera
@@ -38,15 +41,15 @@ cpi r17, 2
 breq Pesada ;Pesada
 
 Ligera:
-sbi PORTB, PB2
+sbi PORTC, PC3
 ret
 
 Media:
-sbi PORTB, PB3
+sbi PORTC, PC4
 ret
 
 Pesada:
-sbi PORTB, PB4
+sbi PORTC, PC5
 ret
 
 
