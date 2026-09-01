@@ -1,427 +1,551 @@
 .include "m328Pdef.inc"
 
+
 .org 0x0000
     rjmp RESET
 
+
+
 RESET:
+
+  
     ldi r16, LOW(RAMEND)
     out SPL, r16
-    ldi r16, HIGH(RAMEND)  
+
+    ldi r16, HIGH(RAMEND)
     out SPH, r16
 
-    ; Leds (8 leds: PD6, PD7, PB0, PB1, PB2, PB3, PB4, PB5)
-    ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4) | (1<<PB5)
-    out DDRB, r16 
 
-    ldi r16, (1<<PD6) | (1<<PD7)
-    out DDRD, r16 
 
-    ; Pulsadores (Pull-up activos en PD2, PD3, PD4)
+    ldi r16, 0b00111111
+    out DDRB, r16
+
+    ldi r16, 0b11000000
+    out DDRD, r16
+
+
     ldi r16, (1<<PD2) | (1<<PD3) | (1<<PD4)
     out PORTD, r16
 
-    ; Estado inicial (0)
     clr r16
-    rjmp ESPERAR_SOLTAR
+
+
+
+ESPERAR:
+
+    ; Botón SIGUIENTE
+    sbis PIND, PD2
+    rjmp SIGUIENTE
+
+    ; Botón ANTERIOR
+    sbis PIND, PD3
+    rjmp ANTERIOR
+
+    ; Botón SECUENCIA 1
+    sbis PIND, PD4
+    rjmp IR_SECUENCIA_1
+
+    ; Ningún botón
+    rjmp EJECUTAR_SECUENCIA
+
+
+SIGUIENTE:
+
+    ; Esperar antirrebote
+    rcall DELAY_CORTO
+
+    ; Verificar que continúa presionado
+    sbis PIND, PD2
+    rjmp SIGUIENTE_CONFIRMADO
+
+    rjmp ESPERAR
+
+
+SIGUIENTE_CONFIRMADO:
+
+    inc r16
+
+    cpi r16, 8
+    brlo ESPERAR_SOLTAR
+
+    clr r16
+
 
 ESPERAR_SOLTAR:
-    sbis PIND, 2                       
-    rjmp MasUno
+    ; Esperar que se suelte PD2
+    sbis PIND, PD2
+    rjmp ESPERAR_SOLTAR
 
-    sbis PIND, 3
-    rjmp MenosUno
+    rjmp EJECUTAR_SECUENCIA
 
-    sbis PIND, 4
-    rjmp Cero
-    rjmp ESPERAR_SOL
 
-ESPERAR_SOL:
-    sbis PIND, 2
-    rjmp ESPERAR_SOL
+ANTERIOR:
 
-    sbis PIND, 3
-    rjmp ESPERAR_SOL
+    rcall DELAY_CORTO
 
-    sbis PIND, 4
-    rjmp ESPERAR_SOL
+    ; Confirmar pulsación
+    sbis PIND, PD3
+    rjmp ANTERIOR_CONFIRMADO
 
-    rjmp Menu
+    rjmp ESPERAR
 
-MasUno:
-    cpi r16, 7        ; Limite superior (Maximo 8 secuencias: 0 a 7)
-    breq ESPERAR_SOL  ; Si ya es 7, no incrementa
-    inc r16
-    rjmp ESPERAR_SOL 
 
-MenosUno:
-    tst  r16          ; Detecta si es menor o igual a 0
-    breq ESPERAR_SOL  
+ANTERIOR_CONFIRMADO:
+
+    ; Si estamos en secuencia 1,
+    ; pasar a secuencia 8
+    tst r16
+    brne RESTAR_SECUENCIA
+
+    ldi r16, 7
+    rjmp ESPERAR_SOLTAR_ANTERIOR
+
+
+RESTAR_SECUENCIA:
+
     dec r16
-    rjmp ESPERAR_SOL
 
-Cero:
+
+ESPERAR_SOLTAR_ANTERIOR:
+
+    ; Esperar liberación
+    sbis PIND, PD3
+    rjmp ESPERAR_SOLTAR_ANTERIOR
+
+    rjmp EJECUTAR_SECUENCIA
+
+
+
+IR_SECUENCIA_1:
+
+    rcall DELAY_CORTO
+
+    ; Confirmar pulsación
+    sbis PIND, PD4
+    rjmp SECUENCIA_1_CONFIRMADA
+
+    rjmp ESPERAR
+
+
+SECUENCIA_1_CONFIRMADA:
+
     clr r16
-    rjmp ESPERAR_SOL
 
-Menu:                  
+ESPERAR_SOLTAR_RESET:
+
+    sbis PIND, PD4
+    rjmp ESPERAR_SOLTAR_RESET
+
+    rjmp EJECUTAR_SECUENCIA
+
+
+EJECUTAR_SECUENCIA:
+
     cpi r16, 0
-    brne CHECK_1
-    rjmp Siccer
-CHECK_1:
+    breq SECUENCIA_1
+
     cpi r16, 1
-    brne CHECK_2
-    rjmp Sicuno
-CHECK_2:
+    breq SECUENCIA_2
+
     cpi r16, 2
-    brne CHECK_3
-    rjmp Sicdos
-CHECK_3:
+    breq SECUENCIA_3
+
     cpi r16, 3
-    brne CHECK_4
-    rjmp Sictre
-CHECK_4:
+    breq SECUENCIA_4
+
     cpi r16, 4
-    brne CHECK_5
-    rjmp Siccua
-CHECK_5:
+    breq SECUENCIA_5
+
     cpi r16, 5
-    brne CHECK_6
-    rjmp Sicin
-CHECK_6:
+    breq SECUENCIA_6
+
     cpi r16, 6
-    brne CHECK_7
-    rjmp Sicsei
-CHECK_7:
-    ldi r16, 7        ; Si no es de 0 a 6, se fuerza a 7
-    rjmp Sicsie 
+    breq SECUENCIA_7
 
-; -------------------------------------------------------------------------
-; SECUENCIAS
-; -------------------------------------------------------------------------
+    rjmp SECUENCIA_8
 
-; Secuencia 0: 1 - 2 - 3 - 4 - 5 - 6 - 7 - 8
-Siccer:  
-    sbi PORTD, PD6
-    rcall DELAY_1S
-    cbi PORTD, PD6
 
-    sbi PORTD, PD7
-    rcall DELAY_1S
-    cbi PORTD, PD7
-
-    sbi PORTB, PB0
-    rcall DELAY_1S
-    cbi PORTB, PB0
-
-    sbi PORTB, PB1
-    rcall DELAY_1S
-    cbi PORTB, PB1
-
-    sbi PORTB, PB2
-    rcall DELAY_1S
-    cbi PORTB, PB2
-
-    sbi PORTB, PB3
-    rcall DELAY_1S
-    cbi PORTB, PB3
-
-    sbi PORTB, PB4
-    rcall DELAY_1S
-    cbi PORTB, PB4
-
-    sbi PORTB, PB5
-    rcall DELAY_1S
-    cbi PORTB, PB5
-
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Siccer
-
-; Secuencia 1: 8 - 7 - 6 - 5 - 4 - 3 - 2 - 1
-Sicuno:  
-    sbi PORTB, PB5
-    rcall DELAY_1S
-    cbi PORTB, PB5
-
-    sbi PORTB, PB4
-    rcall DELAY_1S
-    cbi PORTB, PB4
-
-    sbi PORTB, PB3
-    rcall DELAY_1S
-    cbi PORTB, PB3
-
-    sbi PORTB, PB2
-    rcall DELAY_1S
-    cbi PORTB, PB2
-
-    sbi PORTB, PB1
-    rcall DELAY_1S
-    cbi PORTB, PB1
-
-    sbi PORTB, PB0
-    rcall DELAY_1S
-    cbi PORTB, PB0
-
-    sbi PORTD, PD7
-    rcall DELAY_1S
-    cbi PORTD, PD7
+SECUENCIA_1:
 
     sbi PORTD, PD6
     rcall DELAY_1S
     cbi PORTD, PD6
-
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sicuno
-
-; Secuencia 2: 1 - 3 - 5 - 7 - 2 - 4 - 6 - 8 (Impares y Pares)
-Sicdos:                 
-    sbi PORTD, PD6
-    rcall DELAY_1S
-    cbi PORTD, PD6
-
-    sbi PORTB, PB0
-    rcall DELAY_1S
-    cbi PORTB, PB0
-
-    sbi PORTB, PB2
-    rcall DELAY_1S
-    cbi PORTB, PB2
-
-    sbi PORTB, PB4
-    rcall DELAY_1S
-    cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
 
     sbi PORTD, PD7
     rcall DELAY_1S
     cbi PORTD, PD7
-
-    sbi PORTB, PB1
-    rcall DELAY_1S
-    cbi PORTB, PB1
-
-    sbi PORTB, PB3
-    rcall DELAY_1S
-    cbi PORTB, PB3
-
-    sbi PORTB, PB5
-    rcall DELAY_1S
-    cbi PORTB, PB5
-
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sicdos
-
-; Secuencia 3: 8 - 6 - 4 - 2 - 7 - 5 - 3 - 1
-Sictre:                 
-    sbi PORTB, PB5
-    rcall DELAY_1S
-    cbi PORTB, PB5
-
-    sbi PORTB, PB3
-    rcall DELAY_1S
-    cbi PORTB, PB3
-
-    sbi PORTB, PB1
-    rcall DELAY_1S
-    cbi PORTB, PB1
-
-    sbi PORTD, PD7
-    rcall DELAY_1S
-    cbi PORTD, PD7
-
-    sbi PORTB, PB4
-    rcall DELAY_1S
-    cbi PORTB, PB4
-
-    sbi PORTB, PB2
-    rcall DELAY_1S
-    cbi PORTB, PB2
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB0
     rcall DELAY_1S
     cbi PORTB, PB0
-
-    sbi PORTD, PD6
-    rcall DELAY_1S
-    cbi PORTD, PD6
-
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sictre
-
-; Secuencia 4: 1 - 8 - 2 - 7 - 3 - 6 - 4 - 5
-Siccua:              
-    sbi PORTD, PD6
-    rcall DELAY_1S
-    cbi PORTD, PD6
-
-    sbi PORTB, PB5
-    rcall DELAY_1S
-    cbi PORTB, PB5
-
-    sbi PORTD, PD7
-    rcall DELAY_1S
-    cbi PORTD, PD7
-
-    sbi PORTB, PB4
-    rcall DELAY_1S
-    cbi PORTB, PB4
-
-    sbi PORTB, PB0
-    rcall DELAY_1S
-    cbi PORTB, PB0
-
-    sbi PORTB, PB3
-    rcall DELAY_1S
-    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB1
     rcall DELAY_1S
     cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB2
     rcall DELAY_1S
     cbi PORTB, PB2
-
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Siccua
-
-; Secuencia 5: 4 - 5 - 3 - 6 - 2 - 7 - 1 - 8
-Sicin:
-    sbi PORTB, PB1
-    rcall DELAY_1S
-    cbi PORTB, PB1
-
-    sbi PORTB, PB2
-    rcall DELAY_1S
-    cbi PORTB, PB2
-
-    sbi PORTB, PB0
-    rcall DELAY_1S
-    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB3
     rcall DELAY_1S
     cbi PORTB, PB3
-
-    sbi PORTD, PD7
-    rcall DELAY_1S
-    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB4
     rcall DELAY_1S
     cbi PORTB, PB4
-
-    sbi PORTD, PD6
-    rcall DELAY_1S
-    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB5
     rcall DELAY_1S
     cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
 
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sicin
+    rjmp SECUENCIA_1
 
-; Secuencia 6: Parpadeo de bloques (1-4 Encendidos, luego 5-8)
-Sicsei:
-    sbi PORTD, PD6
-    sbi PORTD, PD7
-    sbi PORTB, PB0
-    sbi PORTB, PB1
+
+SECUENCIA_2:
+
+    sbi PORTB, PB5
     rcall DELAY_1S
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-    cbi PORTB, PB0
-    cbi PORTB, PB1
+    cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB4
+    rcall DELAY_1S
+    cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB3
+    rcall DELAY_1S
+    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
 
     sbi PORTB, PB2
-    sbi PORTB, PB3
-    sbi PORTB, PB4
-    sbi PORTB, PB5
     rcall DELAY_1S
     cbi PORTB, PB2
-    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB0
+    rcall DELAY_1S
+    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD7
+    rcall DELAY_1S
+    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD6
+    rcall DELAY_1S
+    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_2
+
+
+SECUENCIA_3:
+
+    sbi PORTD, PD6
+    rcall DELAY_1S
+    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB0
+    rcall DELAY_1S
+    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB2
+    rcall DELAY_1S
+    cbi PORTB, PB2
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB4
+    rcall DELAY_1S
     cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD7
+    rcall DELAY_1S
+    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB3
+    rcall DELAY_1S
+    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB5
+    rcall DELAY_1S
     cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
 
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sicsei
+    rjmp SECUENCIA_3
 
-; Secuencia 7: Parpadeo General
-Sicsie:
+
+;========================================================
+; SECUENCIA 4
+; 8 - 6 - 4 - 2 - 7 - 5 - 3 - 1
+;========================================================
+SECUENCIA_4:
+
+    sbi PORTB, PB5
+    rcall DELAY_1S
+    cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB3
+    rcall DELAY_1S
+    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD7
+    rcall DELAY_1S
+    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB4
+    rcall DELAY_1S
+    cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB2
+    rcall DELAY_1S
+    cbi PORTB, PB2
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB0
+    rcall DELAY_1S
+    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD6
+    rcall DELAY_1S
+    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_4
+
+
+SECUENCIA_5:
+
+    sbi PORTD, PD6
+    rcall DELAY_1S
+    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB5
+    rcall DELAY_1S
+    cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD7
+    rcall DELAY_1S
+    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB4
+    rcall DELAY_1S
+    cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB0
+    rcall DELAY_1S
+    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB3
+    rcall DELAY_1S
+    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB2
+    rcall DELAY_1S
+    cbi PORTB, PB2
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_5
+
+
+SECUENCIA_6:
+
+    sbi PORTB, PB1
+    rcall DELAY_1S
+    cbi PORTB, PB1
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB2
+    rcall DELAY_1S
+    cbi PORTB, PB2
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB0
+    rcall DELAY_1S
+    cbi PORTB, PB0
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB3
+    rcall DELAY_1S
+    cbi PORTB, PB3
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD7
+    rcall DELAY_1S
+    cbi PORTD, PD7
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB4
+    rcall DELAY_1S
+    cbi PORTB, PB4
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTD, PD6
+    rcall DELAY_1S
+    cbi PORTD, PD6
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB5
+    rcall DELAY_1S
+    cbi PORTB, PB5
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_6
+
+
+
+SECUENCIA_7:
+
     sbi PORTD, PD6
     sbi PORTD, PD7
     sbi PORTB, PB0
     sbi PORTB, PB1
-    sbi PORTB, PB2
-    sbi PORTB, PB3
-    sbi PORTB, PB4
-    sbi PORTB, PB5
+
     rcall DELAY_1S
 
     cbi PORTD, PD6
     cbi PORTD, PD7
     cbi PORTB, PB0
     cbi PORTB, PB1
+
+    rcall COMPROBAR_BOTONES
+
+    sbi PORTB, PB2
+    sbi PORTB, PB3
+    sbi PORTB, PB4
+    sbi PORTB, PB5
+
+    rcall DELAY_1S
+
     cbi PORTB, PB2
     cbi PORTB, PB3
     cbi PORTB, PB4
     cbi PORTB, PB5
+
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_7
+
+
+SECUENCIA_8:
+
+    ; Encender los 8 LEDs
+    ldi r17, 0b00111111
+    out PORTB, r17
+
+    sbi PORTD, PD6
+    sbi PORTD, PD7
+
     rcall DELAY_1S
 
-    sbis PIND, 2
-    rjmp MasUno
-    sbis PIND, 3
-    rjmp MenosUno
-    sbis PIND, 4
-    rjmp Cero
-    rjmp Sicsie
+    ; Apagar los 8 LEDs
+    clr r17
+    out PORTB, r17
 
-; -------------------------------------------------------------------------
-; RUTINA DE RETARDO
-; -------------------------------------------------------------------------
+    cbi PORTD, PD6
+    cbi PORTD, PD7
+
+    rcall DELAY_1S
+
+    rcall COMPROBAR_BOTONES
+
+    rjmp SECUENCIA_8
+
+
+
+COMPROBAR_BOTONES:
+
+    ; SIGUIENTE
+    sbis PIND, PD2
+    rjmp SIGUIENTE
+
+    ; ANTERIOR
+    sbis PIND, PD3
+    rjmp ANTERIOR
+
+    ; SECUENCIA 1
+    sbis PIND, PD4
+    rjmp IR_SECUENCIA_1
+
+    ret
+
 DELAY_1S:
-    ldi  r18, 11
-    ldi  r19, 38
-    ldi  r20, 93
-L1: dec  r20     
+
+    ldi r18, 11
+    ldi r19, 38
+    ldi r20, 93
+
+L1:
+    dec r20
     brne L1
-    dec  r19   
+
+    dec r19
     brne L1
-    dec  r18
+
+    dec r18
     brne L1
+
+    ret
+
+
+DELAY_CORTO:
+
+    ldi r21, 20
+
+D1:
+    ldi r22, 255
+
+D2:
+    dec r22
+    brne D2
+
+    dec r21
+    brne D1
+
     ret
