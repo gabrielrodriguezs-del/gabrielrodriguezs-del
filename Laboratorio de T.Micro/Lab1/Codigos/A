@@ -1,455 +1,171 @@
-; Por razones de comodidad, uno de los partisipantes utiliza otro softwere para implementar la programacion
-
-.include "m328pdef.inc"
-
-
-
-.def TEMP   = r16
-.def CARGA  = r17
-.def TIEMPO = r18
-.def CONT1  = r19
-.def CONT2  = r20
-.def CONT3  = r21
-.def CICLOS = r22
+.include "m328Pdef.inc"
 
 .org 0x0000
-    rjmp INICIO
-
-	
-INICIO:
-
-    ldi TEMP, LOW(RAMEND)
-    out SPL, TEMP
-    ldi TEMP, HIGH(RAMEND)
-    out SPH, TEMP
-
-    ldi TEMP, 0b00011111
-    out DDRB, TEMP
-
-    ldi TEMP, 0b00000111
-    out DDRC, TEMP
-
-    ldi TEMP, 0b11000000
-    out DDRD, TEMP
-
-  
-    sbi PORTD, PD2
-    sbi PORTD, PD3
-    sbi PORTD, PD4
-    sbi PORTD, PD5
-
-    ; Motor apagado
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-  
-    clr CARGA
-
-LISTO:
-
-    ; LED de estado
-    sbi PORTB, PB0
-    cbi PORTB, PB1
-    cbi PORTB, PB2
-    cbi PORTB, PB3
-    cbi PORTB, PB4
-
-   
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-    rcall MOSTRAR_CARGA
-
-ESPERAR:
-
-    sbis PIND, PD2
-    rjmp SELECCIONAR_CARGA
-
-    ; ¿Pulsador de inicio?
-    sbis PIND, PD3
-    rjmp INICIAR_LAVADO
-
-    rjmp ESPERAR
-
-
-
-SELECCIONAR_CARGA:
-
-    rcall DELAY_ANTIRREBOTE
-
- 
-    sbis PIND, PD2
-    rjmp CAMBIAR_CARGA
-
-    rjmp ESPERAR
-
-
-CAMBIAR_CARGA:
-
-    inc CARGA
-
-
-    cpi CARGA, 3
-    brne ACTUALIZAR_CARGA
-
-    clr CARGA
-
-
-ACTUALIZAR_CARGA:
-
-    rcall MOSTRAR_CARGA
-
-ESPERAR_SOLTAR_CARGA:
-
-
-    sbis PIND, PD2
-    rjmp ESPERAR_SOLTAR_CARGA
-
-    rjmp ESPERAR
-
-
-MOSTRAR_CARGA:
-
-    cbi PORTC, PC0
-    cbi PORTC, PC1
-    cbi PORTC, PC2
-
-    cpi CARGA, 0
-    breq LED_LIGERA
-
-    cpi CARGA, 1
-    breq LED_MEDIA
-
-    rjmp LED_PESADA
-
-
-LED_LIGERA:
-    sbi PORTC, PC0
-    ret
-
-
-LED_MEDIA:
-    sbi PORTC, PC1
-    ret
-
-
-LED_PESADA:
-    sbi PORTC, PC2
-    ret
-
-
-
-INICIAR_LAVADO:
-
-    rcall DELAY_ANTIRREBOTE
-
-  
-    sbis PIND, PD3
-    rjmp COMPROBAR_SENSORES
-
-    rjmp ESPERAR
-
-
-COMPROBAR_SENSORES:
-
-ESPERAR_PUERTA:
-
-    sbic PIND, PD4
-    rjmp ESPERAR_PUERTA
-
-
-ESPERAR_AGUA:
-
-    sbic PIND, PD5
-    rjmp ESPERAR_AGUA
-
-    rjmp LAVADO
-
-
-LAVADO:
-
-    cbi PORTB, PB0
-    sbi PORTB, PB1
-    cbi PORTB, PB2
-    cbi PORTB, PB3
-    cbi PORTB, PB4
-
-    ldi CICLOS, 5
-
-
-LAVADO_CICLO:
-
-
-    ldi TIEMPO, 2
-    add TIEMPO, CARGA
-
-    sbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-LAVADO_GIRO:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne LAVADO_GIRO
-
-
-
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-    ldi TIEMPO, 1
-    add TIEMPO, CARGA
-
-
-LAVADO_PAUSA:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne LAVADO_PAUSA
-
-    dec CICLOS
-    brne LAVADO_CICLO
-
-    rjmp CENTRIFUGADO
-
-
-CENTRIFUGADO:
-
-    cbi PORTB, PB0
-    cbi PORTB, PB1
-    sbi PORTB, PB2
-    cbi PORTB, PB3
-    cbi PORTB, PB4
-
-    ; 15 + 3*CARGA
-    ldi TIEMPO, 15
-
-    mov TEMP, CARGA
-    lsl TEMP
-    add TEMP, CARGA
-
-    add TIEMPO, TEMP
-
-    ; Motor derecha
-    sbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-CENTRIFUGADO_LOOP:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne CENTRIFUGADO_LOOP
-
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-    rjmp SECADO
-
-
-
-SECADO:
-
-    cbi PORTB, PB0
-    cbi PORTB, PB1
-    cbi PORTB, PB2
-    sbi PORTB, PB3
-    cbi PORTB, PB4
-
-
-    ldi CICLOS, 1
-
-    mov TEMP, CARGA
-    lsl TEMP
-
-    add CICLOS, TEMP
-
-
-SECADO_CICLO:
-
-
-
-    ldi TIEMPO, 5
-
-    sbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-SECADO_DERECHA:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne SECADO_DERECHA
-
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-    ldi TIEMPO, 3
-
-
-SECADO_PAUSA:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne SECADO_PAUSA
-
-
-
-    ldi TIEMPO, 5
-
-    cbi PORTD, PD6
-    sbi PORTD, PD7
-
-
-SECADO_IZQUIERDA:
-
-    rcall VERIFICAR_SEGURIDAD
-    rcall DELAY_1S
-
-    dec TIEMPO
-    brne SECADO_IZQUIERDA
-
-
-    ; Apagar motor
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-    ; Siguiente ciclo
-    dec CICLOS
-    brne SECADO_CICLO
-
-    rjmp FIN
-
-
-FIN:
-
-    cbi PORTB, PB0
-    cbi PORTB, PB1
-    cbi PORTB, PB2
-    cbi PORTB, PB3
-    sbi PORTB, PB4
-
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-ESPERAR_REINICIO:
-
-    ; Esperar botón de inicio
-    sbis PIND, PD3
-    rjmp REINICIAR
-
-    rjmp ESPERAR_REINICIO
-
-
-REINICIAR:
-
-    rcall DELAY_ANTIRREBOTE
-
-    sbis PIND, PD3
-    rjmp LISTO
-
-    rjmp ESPERAR_REINICIO
-
-
-
-VERIFICAR_SEGURIDAD:
-
-    ; ¿Puerta abierta?
-    sbic PIND, PD4
-    rjmp PAUSA_SEGURIDAD
-
-    ; ¿Falta agua?
-    sbic PIND, PD5
-    rjmp PAUSA_SEGURIDAD
-
-    ret
-
-
-PAUSA_SEGURIDAD:
-
-    ; Detener motor
-    cbi PORTD, PD6
-    cbi PORTD, PD7
-
-
-ESPERAR_SEGURIDAD:
-
-    sbic PIND, PD4
-    rjmp ESPERAR_SEGURIDAD
-
-    sbic PIND, PD5
-    rjmp ESPERAR_SEGURIDAD
-
-    ret
-
+rjmp RESET
+
+;Usados r17, r18, r19, r20
+
+RESET:
+; Configurar PB0, PB1 y PB2 como salidas
+ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3) | (1<<PB4)
+out DDRB, r16
+
+; Configurar PD2 como entrada con Pull-Up activado (0 = presionado, 1 = suelto)
+cbi DDRD, 2
+sbi PORTD, 2
+
+; Configurar PD3 como entrada con Pull-Up activado (0 = presionado, 1 = suelto)
+cbi DDRD, 3
+sbi PORTD, 3
+
+; Estado inicial (0)
+clr r17
+rjmp ESPERAR_SOLTAR
+
+Luces: ; Evalúa qué luz encender
+
+cbi PORTB, PB2
+cbi PORTB, PB3
+cbi PORTB, PB4
+
+cpi r17, 0
+breq Ligera ;Ligera
+
+cpi r17, 1
+breq Media ;Media
+
+cpi r17, 2
+breq Pesada ;Pesada
+
+Ligera:
+sbi PORTB, PB2
+ret
+
+Media:
+sbi PORTB, PB3
+ret
+
+Pesada:
+sbi PORTB, PB4
+ret
+
+
+ESPERAR_SOLTAR:
+rcall Luces
+ESPERAR_SOLO:
+sbi PORTB, PB0
+sbis PIND, 2 ;Espera a que el boton se desprecione
+rjmp ESPERAR_SOLO
+
+ESPERAR_PRESIONAR:
+; sbic salta si PD2 es 0 (presionado). Si está suelto (1), mantiene el bucle.
+sbis PIND, 3 ;Sensor de la puerta
+rjmp Lavado
+sbis PIND, 2
+rjmp More1
+rjmp ESPERAR_PRESIONAR
+
+More1:
+; Incrementar el estado (0 -> 1 -> 2 -> 0)
+inc r17
+cpi r17, 3
+brne ESPERAR_SOLTAR ;ESPERAR_PRESIONAR ; Si no es 3, muestra el estado (1 o 2)
+clr r17 ; Si es 3, lo reinicia a 0 e igual pasa a MOSTRAR_LUZ
+rjmp ESPERAR_SOLTAR
+
+Lavado:
+cbi PORTB, PB2
+cbi PORTB, PB3
+cbi PORTB, PB4
+
+cbi PORTB, PB0
+ldi r21, 2 ;2Segundos Gira
+add r21, r17
+ldi r22, 5
+G1:
+sbi PORTB, PB1
+rcall DELAY_1S
+dec r21
+brne G1
+
+cbi PORTB, PB1
+ldi r21, 1 ;Pausa 1 Segundo
+add r21, r17
+G2:
+rcall DELAY_1S
+dec r21
+brne G2
+
+ldi r21, 2
+add r21, r17
+dec r22
+brne G1
+cbi PORTB, PB1
+rjmp Centrifugado
+
+Centrifugado:
+ldi r21, 15 ;15Segundos Gira
+ldi r22, 1
+add r22, r17
+add r22, r17 ;3 vucles
+add r22, r17
+G3:
+sbi PORTB, PB2
+rcall DELAY_1S
+dec r21
+brne G3
+ldi r21, 15
+dec r22
+brne G3
+cbi PORTB, PB2
+rjmp Secado
+
+Secado:
+ldi r21, 5 ;5Segundos Gira
+add r21, r17
+add r21, r17
+ldi r22, 0
+add r22, r17
+
+G4:
+sbi PORTB, PB3 ;Gira
+rcall DELAY_1S ;IZ
+dec r21
+brne G4
+
+ldi r21, 3 ;5Segundos Gira
+add r21, r17 ;info
+add r21, r17
+
+G5:
+cbi PORTB, PB3
+rcall DELAY_1S
+dec r21 ;Pausa 1 Segundo ;Stop
+brne G5
+
+ldi r21, 5 ;5Segundos Gira
+add r21, r17 ;Info
+add r21, r17
+
+G6:
+sbi PORTB, PB3 ;Gira
+rcall DELAY_1S ;der
+dec r21
+brne G6
+cbi PORTB, PB3
+
+Floot:
+sbi PORTB, PB4
+rjmp Floot
 
 DELAY_1S:
-
-    push CONT1
-    push CONT2
-    push CONT3
-
-    ldi CONT1, 101
-    ldi CONT2, 250
-    ldi CONT3, 210
-
-
-DELAY_LOOP:
-
-    dec CONT3
-    brne DELAY_LOOP
-
-    dec CONT2
-    brne DELAY_LOOP
-
-    dec CONT1
-    brne DELAY_LOOP
-
-    pop CONT3
-    pop CONT2
-    pop CONT1
-
-    ret
-
-
-
-DELAY_ANTIRREBOTE:
-
-    push CONT1
-    push CONT2
-    push CONT3
-
-    ldi CONT1, 5
-    ldi CONT2, 255
-    ldi CONT3, 255
-
-
-ANTIRREBOTE_LOOP:
-
-    dec CONT3
-    brne ANTIRREBOTE_LOOP
-
-    dec CONT2
-    brne ANTIRREBOTE_LOOP
-
-    dec CONT1
-    brne ANTIRREBOTE_LOOP
-
-    pop CONT3
-    pop CONT2
-    pop CONT1
-
-    ret
+ldi r18, 82
+ldi r19, 43
+ldi r20, 0
+L1: dec r20 ;Segundos r20-1
+brne L1
+dec r19 ;
+brne L1
+dec r18
+brne L1
+ret
