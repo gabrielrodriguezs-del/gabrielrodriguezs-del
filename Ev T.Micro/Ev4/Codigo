@@ -1,0 +1,466 @@
+.include "m328Pdef.inc"
+
+;Salidas:
+	ldi r16, (1<<PD2) | (1<<PD3) | (1<<PD4) | (1<<PD5) | (1<<PD6) | (1<<PD7)
+	out DDRD, r16
+	ldi r16, 0
+	out PORTD, r16  ;Salidas
+
+	ldi r16, (1<<PC0) | (1<<PC1) | (1<<PC2) | (1<<PC3) | (1<<PC4) | (1<<PC5) | (1<<PC6)
+	out DDRC, r16      
+	ldi r16, 0b001111111
+	out PORTC, r16 ;Salidas
+
+	ldi r16, (1<<PB0) | (1<<PB1) | (1<<PB2) | (1<<PB3)
+	out DDRB, r16
+	ldi r16, 0b00001111
+	out PORTB, r16
+	
+;Entradas:
+	ldi r16, (1<<PB4) | (1<<PB5)
+	;out portb, r16
+	
+	;;;;;;;
+	cbi DDRB, PB4
+	cbi DDRB, PB5
+
+	; Pull-up internas
+	sbi PORTB, PB4
+	sbi PORTB, PB5
+	;;;;;;;;
+
+	ldi r16, high(RAMEND)    ;Para rcall
+	out SPH, r16
+	
+	ldi r16, low(RAMEND)
+	out SPL, r16
+
+;Nombres:
+	.def Cambio = r16
+	.def Dual = r17
+	.def Filas = r18     ;C
+	.def Columnas = r19  ;B
+	;Mostrar 20
+	;Prueba de error 21 y 22 son tiempo
+	ldi Dual, 40
+	ldi r16, 1
+	ldi r17, 1
+	 
+	rjmp Elegir
+
+Esperar_Soltar:
+	sbis pinb, 4
+	rjmp Esperar_Soltar
+	sbis pinb, 5
+	rjmp Esperar_Soltar
+	rjmp Presionar_Boton
+
+Presionar_Boton:
+	sbis pinb, 4
+	rjmp INCREMENTAR
+	sbis pinb, 5
+	rjmp DECREMENTAR
+	rjmp Elegir
+	
+INCREMENTAR:
+		;ldi r31, 7
+    CPI R16, 3
+    BREQ Esperar_Soltar
+
+    INC R16
+    RJMP Esperar_Soltar
+
+DECREMENTAR:
+		;ldi r31, 8
+    CPI R16, 0
+    BREQ Esperar_Soltar
+
+    DEC R16
+    RJMP Esperar_Soltar
+
+Elegir:
+	cpi Cambio, 1
+	breq Uno 
+	cpi Cambio, 2
+	breq Elegir12
+	cpi Cambio, 3
+	breq Elegir12
+	
+	ldi Cambio, 1
+	rjmp Uno
+
+Uno:	
+	cbi PORTB, PB3           
+	ldi Columnas, 0b01100110
+	rcall Mostrar      
+	sbi PORTB, PB3
+	
+	cbi PORTB, PB2
+	ldi Columnas, 0b01100110
+	rcall Mostrar
+	sbi PORTB, PB2
+	
+	cbi PORTC, PC0
+	ldi Columnas, 0b01100110
+	rcall Mostrar
+	sbi PORTC, PC0
+	
+	cbi PORTC, PC1
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC1
+	
+	cbi PORTC, PC2
+	ldi Columnas, 0b11000011
+	rcall Mostrar
+	sbi PORTC, PC2
+	
+	cbi PORTC, PC3
+	ldi Columnas, 0b01100110
+	rcall Mostrar
+	sbi PORTC, PC3
+	
+	cbi PORTC, PC4
+	ldi Columnas, 0b00011000
+	rcall Mostrar
+	sbi PORTC, PC4
+	
+	cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne Uno
+	ldi Dual, 40
+	rjmp UnoDos
+	
+Elegir12:
+	cpi Cambio, 2
+	breq Dos 
+	cpi Cambio, 3
+	breq Elegir2
+	ldi Cambio, 1
+	rjmp Elegir
+	
+Esperar_Soltar12:
+	rjmp Esperar_Soltar
+	
+Presionar_Boton12:
+	rjmp Presionar_Boton
+	
+UnoDos:
+	cbi PORTB, PB3           
+	ldi Columnas, 0b01100000
+	rcall Mostrar     
+	sbi PORTB, PB3
+		cbi PORTB, PB2
+	ldi Columnas, 0b01100110
+	rcall Mostrar
+	sbi PORTB, PB2
+		cbi PORTC, PC0
+	ldi Columnas, 0b01100000
+	rcall Mostrar
+	sbi PORTC, PC0
+		cbi PORTC, PC1
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC1
+		cbi PORTC, PC2
+	ldi Columnas, 0b11000011
+	rcall Mostrar
+	sbi PORTC, PC2
+		cbi PORTC, PC3
+	ldi Columnas, 0b01100110
+	rcall Mostrar
+	sbi PORTC, PC3
+		cbi PORTC, PC4
+	ldi Columnas, 0b00011000
+	rcall Mostrar
+	sbi PORTC, PC4	
+		cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne UnoDos
+	ldi Dual, 40
+;	ldi r16, 1
+	rjmp Presionar_Boton2
+	
+	Elegir2:
+	cpi Cambio, 2
+	breq Dos 
+	cpi Cambio, 3
+	breq Elegir22
+	ldi Cambio, 1
+	rjmp Elegir12
+	
+Esperar_Soltar2:
+	rjmp Esperar_Soltar
+	
+Presionar_Boton2:
+	rjmp Presionar_Boton
+	
+Dos:	
+	cbi PORTB, PB3           
+	ldi Columnas, 0b00000000
+	rcall Mostrar      
+	sbi PORTB, PB3
+		cbi PORTB, PB2
+	ldi Columnas, 0b00001110
+	rcall Mostrar
+	sbi PORTB, PB2
+		cbi PORTC, PC0
+	ldi Columnas, 0b01000010
+	rcall Mostrar
+	sbi PORTC, PC0
+		cbi PORTC, PC1
+	ldi Columnas, 0b00001110
+	rcall Mostrar
+	sbi PORTC, PC1
+		cbi PORTC, PC2
+	ldi Columnas, 0b01000010
+	rcall Mostrar
+	sbi PORTC, PC2
+		cbi PORTC, PC3
+	ldi Columnas, 0b00001110
+	rcall Mostrar
+	sbi PORTC, PC3
+		cbi PORTC, PC4
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC4
+		cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne Dos
+	ldi Dual, 40
+	rjmp DosDos
+	
+Elegir22:
+	cpi Cambio, 2
+	breq Elegir2
+	cpi Cambio, 3
+	breq Tres 
+	
+	ldi Cambio, 1
+	rjmp Elegir2
+	
+Esperar_Soltar22:
+	rjmp Esperar_Soltar2
+	
+Presionar_Boton22:
+	rjmp Presionar_Boton2
+	
+DosDos:
+	cbi PORTB, PB3           
+	ldi Columnas, 0b01100110
+	rcall Mostrar     
+	sbi PORTB, PB3
+	
+	cbi PORTB, PB2
+	ldi Columnas, 0b11111111
+	rcall Mostrar
+	sbi PORTB, PB2
+	
+	cbi PORTC, PC0
+	ldi Columnas, 0b11111111
+	rcall Mostrar
+	sbi PORTC, PC0
+	
+	cbi PORTC, PC1
+	ldi Columnas, 0b11111111
+	rcall Mostrar
+	sbi PORTC, PC1
+	
+	cbi PORTC, PC2
+	ldi Columnas, 0b01111110
+	rcall Mostrar
+	sbi PORTC, PC2
+	
+	cbi PORTC, PC3
+	ldi Columnas, 0b00111100
+	rcall Mostrar
+	sbi PORTC, PC3
+	
+	cbi PORTC, PC4
+	ldi Columnas, 0b00011000
+	rcall Mostrar
+	sbi PORTC, PC4
+	
+	cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne DosDos
+	ldi Dual, 40
+;	ldi r16, 2
+	rjmp Presionar_Boton2
+	
+	Elegir3:
+	cpi Cambio, 2
+	breq Elegir22
+	cpi Cambio, 3
+	breq Elegir22
+	ldi Cambio, 1
+	rjmp Elegir
+	
+Esperar_Soltar3:
+	rjmp Esperar_Soltar
+	
+Presionar_Boton3:
+	rjmp Presionar_Boton
+	
+Tres:	
+	cbi PORTB, PB3           
+	ldi Columnas, 0b10011001
+	rcall Mostrar      
+	sbi PORTB, PB3
+		cbi PORTB, PB2
+	ldi Columnas, 0b01011010
+	rcall Mostrar
+	sbi PORTB, PB2
+		cbi PORTC, PC0
+	ldi Columnas, 0b00111100
+	rcall Mostrar
+	sbi PORTC, PC0
+		cbi PORTC, PC1
+	ldi Columnas, 0b11111111
+	rcall Mostrar
+	sbi PORTC, PC1
+		cbi PORTC, PC2
+	ldi Columnas, 0b00111100
+	rcall Mostrar
+	sbi PORTC, PC2
+		cbi PORTC, PC3
+	ldi Columnas, 0b01011010
+	rcall Mostrar
+	sbi PORTC, PC3
+		cbi PORTC, PC4
+	ldi Columnas, 0b10011001
+	rcall Mostrar
+	sbi PORTC, PC4
+		cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne Tres
+	ldi Dual, 40
+	rjmp TresDos
+	
+Elegir33:
+	cpi Cambio, 2
+	breq Elegir3
+	cpi Cambio, 3
+	breq Tres 
+	
+	ldi Cambio, 1
+	rjmp Elegir
+	
+Esperar_Soltar33:
+	rjmp Esperar_Soltar3
+	
+Presionar_Boton33:
+	rjmp Presionar_Boton3
+	
+TresDos:
+	cbi PORTB, PB3           
+	ldi Columnas, 0b00000000
+	rcall Mostrar      
+	sbi PORTB, PB3
+		cbi PORTB, PB2
+	ldi Columnas, 0b00000100
+	rcall Mostrar
+	sbi PORTB, PB2
+		cbi PORTC, PC0
+	ldi Columnas, 0b10010110
+	rcall Mostrar
+	sbi PORTC, PC0
+		cbi PORTC, PC1
+	ldi Columnas, 0b01100101
+	rcall Mostrar
+	sbi PORTC, PC1
+		cbi PORTC, PC2
+	ldi Columnas, 0b01100101
+	rcall Mostrar
+	sbi PORTC, PC2
+		cbi PORTC, PC3
+	ldi Columnas, 0b10010110
+	rcall Mostrar
+	sbi PORTC, PC3
+		cbi PORTC, PC4
+	ldi Columnas, 0b00000100
+	rcall Mostrar
+	sbi PORTC, PC4
+		cbi PORTC, PC5
+	ldi Columnas, 0b00000000
+	rcall Mostrar
+	sbi PORTC, PC5
+	
+	dec Dual
+	brne TresDos
+	ldi Dual, 40
+;	ldi r16, 2
+	rjmp Presionar_Boton2
+
+Mostrar:
+	
+	;Columnas
+	sbrc Columnas, 0
+	sbi PORTD, PD2
+	sbrc Columnas, 1
+	sbi PORTD, PD3
+	sbrc Columnas, 2
+	sbi PORTD, PD4
+	sbrc Columnas, 3
+	sbi PORTD, PD5
+	sbrc Columnas, 4
+	sbi PORTD, PD6
+	sbrc Columnas, 5
+	sbi PORTD, PD7
+	sbrc Columnas, 6
+	sbi PORTB, PB0
+	sbrc Columnas, 7
+	sbi PORTB, PB1
+	rcall Retardo
+;	ldi r20, 0b00111111
+	cbi PORTD, PD2
+	cbi PORTD, PD3
+	cbi PORTD, PD4
+	cbi PORTD, PD5
+	cbi PORTD, PD6
+	cbi PORTD, PD7     
+	cbi PORTB, PB0
+	cbi PORTB, PB1
+	
+ret 
+	
+Retardo:
+
+;Registros para el retardo 
+.def Tiempo1 = r22 
+.def Tiempo2 = r21
+
+	ldi Tiempo1, 255
+
+Retardo1:
+
+    ldi Tiempo2, 100
+
+Retardo2:
+
+    dec Tiempo2
+    brne Retardo2
+
+    dec Tiempo1
+    brne Retardo1
+ret
